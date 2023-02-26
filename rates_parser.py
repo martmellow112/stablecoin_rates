@@ -37,7 +37,15 @@ def get_token_decimals(token_address):
     return decimals
 
 
-def curve_connector(pool, token_in, token_out, amount):
+def curve_connector(pool, token_in, token_out, swap_size) -> int:
+    '''
+    :param pool: Address of the pool where the swap should happen
+    :param token_in: Address of the token to be swapped (outgoing) -->
+    :param token_out: Address of the token to be received (incoming) <--
+    :param swap_size: Size of the swap
+    :return:
+    '''
+
     # Transform to checksum values
     pool = Web3.toChecksumAddress(pool)
     token_in = Web3.toChecksumAddress(token_in)
@@ -62,18 +70,13 @@ def curve_connector(pool, token_in, token_out, amount):
         output = pool.get_dy(coins.index(token_in),
                           coins.index(token_out),
                           amount).call()
-        # Calculate the exchange rate:
 
-        print(pool.get_dy(coins.index(token_in),
-                          coins.index(token_out),
-                          amount).call())
-
+        print(output)
 
 
     else:
         print('Exchange rate cannot be calculated. Check if both tokens are calculated from the pool.')
-        break
-    return s
+    return output
 
 def main():
     curve_connector(pool='0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7',
