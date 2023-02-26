@@ -1,9 +1,8 @@
-import web3
 from web3 import Web3
 import requests
 import json
 
-providers = {'ethereum': 'https://rpc.ankr.com/eth',
+rpc = {'ethereum': 'https://rpc.ankr.com/eth',
              'bnb': 'https://rpc.ankr.com/bsc',
              'avalanche': 'https://rpc.ankr.com/avalanche',
              'fantom': 'https://rpc.ankr.com/fantom',
@@ -11,15 +10,14 @@ providers = {'ethereum': 'https://rpc.ankr.com/eth',
              'optimism': 'https://rpc.ankr.com/optimism',
              'polygon': 'https://rpc.ankr.com/polygon'
              }
-w3 = Web3(Web3.HTTPProvider(providers['ethereum']))
+
+w3 = Web3(Web3.HTTPProvider(rpc['ethereum']))
 
 ETHERSCAN_API_KEY = "M89HK8KFR9I27UNGX4ANE2BBZ7QN13GUY7"
 
-address = web3.Web3.toChecksumAddress('0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7')
-
-
 # this will fetch abi from an explorer given an address
 def fetch_abi(address):
+    address = Web3.toChecksumAddress(address)
     payload = {'module': 'contract',
                'action': 'getabi',
                'address': address,
@@ -30,32 +28,59 @@ def fetch_abi(address):
     return abi
 
 
-def get_decimals(token_address):
-    token_abi = fetch_abi(address=token_address)
-    token_contract = w3.eth.contract(address=token_address, abi=token_abi)
-    decimals = token_contract.functions.decimals().call()
-    print(decimals)
+def get_token_decimals(token_address):
+    '''
+    This function assumes that the token is ERC20 standard.
+    '''
+    erc20_abi = json.load(open('erc20.abi.json'))
+    decimals = w3.eth.contract(address=token_address,abi=erc20_abi).functions.decimals().call()
     return decimals
 
-def curve_connector(pool):
-    # Get ABI of the pool contract in order to interact with it
-    contract_abi = fetch_abi(address=pool)
-    contract = w3.eth.contract(address=address, abi=contract_abi)
-    coins_and_addresses = []
 
+def curve_connector(pool, token_in, token_out, amount):
+    # Transform to checksum values
+    pool = Web3.toChecksumAddress(pool)
+    token_in = Web3.toChecksumAddress(token_in)
+    token_out = Web3.toChecksumAddress(token_out)
+    # Get ABI of the pool contract in order to interact with it.
+    pool = w3.eth.contract(address=pool, abi=fetch_abi(pool)).functions
+
+    amount = amount * 10 ** (get_token_decimals(token_in))
+
+    # Make a list of tokens, which could be exchanged in the pool.
+    coins = []
     for i in range(0, 4):
         try:
-            coins_and_addresses.append(contract.functions.coins(i).call())
+            coins.append(pool.coins(i).call())
         except Exception:
             pass
+    print(coins)
 
-    print(coins_and_addresses)
+    # This function will be used to govern the logic of choosing an exchange rate
+    if token_in and token_out in coins:
+        print(f"Exchange rate can be calculated.\n")
+        output = pool.get_dy(coins.index(token_in),
+                          coins.index(token_out),
+                          amount).call()
+        # Calculate the exchange rate:
+
+        print(pool.get_dy(coins.index(token_in),
+                          coins.index(token_out),
+                          amount).call())
 
 
-# This function will be used to govern the logic of choosing an exchange rate
+
+    else:
+        print('Exchange rate cannot be calculated. Check if both tokens are calculated from the pool.')
+        break
+    return s
+
 def main():
-    curve_connector(address)
-    get_decimals('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48')
+    curve_connector(pool='0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7',
+                    token_in='0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+                    token_out='0xdAC17F958D2ee523a2206206994597C13D831ec7',
+                    amount=1000)
+
 
 if __name__ == "__main__":
     main()
