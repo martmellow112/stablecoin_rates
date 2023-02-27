@@ -16,7 +16,7 @@ w3 = Web3(Web3.HTTPProvider(rpc['ethereum']))
 
 ETHERSCAN_API_KEY = keys.etherscan_api_key
 
-# this will fetch abi from an explorer given an address
+# This will fetch abi from an explorer given an address
 def fetch_abi(address):
     address = Web3.toChecksumAddress(address)
     payload = {'module': 'contract',
@@ -43,18 +43,18 @@ def curve_connector(pool, token_in, token_out, swap_size) -> int:
     :param pool: Address of the pool where the swap should happen
     :param token_in: Address of the token to be swapped (outgoing) -->
     :param token_out: Address of the token to be received (incoming) <--
-    :param swap_size: Size of the swap
-    :return:
+    :param swap_size: Size of the swap in normal units (this will be converted into the required decimal amount)
+    :return: int() output of exchange rate
     '''
 
     # Transform to checksum values
     pool = Web3.toChecksumAddress(pool)
     token_in = Web3.toChecksumAddress(token_in)
     token_out = Web3.toChecksumAddress(token_out)
+
     # Get ABI of the pool contract in order to interact with it.
     pool = w3.eth.contract(address=pool, abi=fetch_abi(pool)).functions
-
-    amount = amount * 10 ** (get_token_decimals(token_in))
+    swap_size = swap_size * 10 ** (get_token_decimals(token_in))
 
     # Make a list of tokens, which could be exchanged in the pool.
     coins = []
@@ -69,21 +69,19 @@ def curve_connector(pool, token_in, token_out, swap_size) -> int:
     if token_in and token_out in coins:
         print(f"Exchange rate can be calculated.\n")
         output = pool.get_dy(coins.index(token_in),
-                          coins.index(token_out),
-                          amount).call()
-
+                             coins.index(token_out),
+                             swap_size).call()
         print(output)
 
-
     else:
-        print('Exchange rate cannot be calculated. Check if both tokens are calculated from the pool.')
+        print('Exchange rate cannot be calculated. Check if both tokens are contained in the pool.')
     return output
 
 def main():
     curve_connector(pool='0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7',
                     token_in='0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
                     token_out='0xdAC17F958D2ee523a2206206994597C13D831ec7',
-                    amount=1000)
+                    swap_size=1000)
 
 
 if __name__ == "__main__":
