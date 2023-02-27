@@ -64,7 +64,6 @@ def curve_connector(pool, token_in, token_out, amount_in_human) -> int:
             coins.append(pool.coins(i).call())
         except Exception:
             pass
-    print(coins)
 
     # This function will be used to calculate the given exchange rate
     if token_in and token_out in coins:
