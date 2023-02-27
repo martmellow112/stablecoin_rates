@@ -1,6 +1,7 @@
 from web3 import Web3
 import requests
 import json
+import keys
 
 rpc = {'ethereum': 'https://rpc.ankr.com/eth',
              'bnb': 'https://rpc.ankr.com/bsc',
@@ -13,7 +14,7 @@ rpc = {'ethereum': 'https://rpc.ankr.com/eth',
 
 w3 = Web3(Web3.HTTPProvider(rpc['ethereum']))
 
-ETHERSCAN_API_KEY = "M89HK8KFR9I27UNGX4ANE2BBZ7QN13GUY7"
+ETHERSCAN_API_KEY = keys.etherscan_api_key
 
 # this will fetch abi from an explorer given an address
 def fetch_abi(address):
