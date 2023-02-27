@@ -1,4 +1,4 @@
-
+[//]: # (Stablecoin Rates Dashboard)
 This project is a dashboard with stablecoin exchange rates for various depths, and composition of assets,
 later -> visualiser with various depths
 
