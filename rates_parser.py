@@ -3,14 +3,10 @@ import requests
 import json
 import keys
 
-rpc = {'ethereum': 'https://rpc.ankr.com/eth',
-             'bnb': 'https://rpc.ankr.com/bsc',
-             'avalanche': 'https://rpc.ankr.com/avalanche',
-             'fantom': 'https://rpc.ankr.com/fantom',
-             'arbitrum': 'https://rpc.ankr.com/arbitrum',
-             'optimism': 'https://rpc.ankr.com/optimism',
-             'polygon': 'https://rpc.ankr.com/polygon'
-             }
+rpc = dict(ethereum='https://rpc.ankr.com/eth', bnb='https://rpc.ankr.com/bsc',
+           avalanche='https://rpc.ankr.com/avalanche', fantom='https://rpc.ankr.com/fantom',
+           arbitrum='https://rpc.ankr.com/arbitrum', optimism='https://rpc.ankr.com/optimism',
+           polygon='https://rpc.ankr.com/polygon')
 
 w3 = Web3(Web3.HTTPProvider(rpc['ethereum']))
 
