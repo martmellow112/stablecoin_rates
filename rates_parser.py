@@ -81,7 +81,7 @@ def curve_connector(pool, token_in, token_out, amount_in) -> int:
         print('Exchange rate cannot be calculated. Check if both tokens are contained in the pool.')
 
 
-def uniswap_v3_connector(router, token_in, token_out, amount_in) -> int:
+def uniswap_v3_connector(quoter, token_in, token_out, amount_in) -> int:
     """
     :param router: Address of the router, which is a periphery contract used to output price for swaps
     :param token_in: Address of the token to be swapped (outgoing) -->
@@ -105,7 +105,10 @@ def main():
     #                 token_out='0xdAC17F958D2ee523a2206206994597C13D831ec7',
     #                 amount_in=100_000_000)
 
-    uniswapV2_connector()
+    uniswap_v3_connector(quoter="0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7",
+                         token_in='0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+                         token_out='0xdAC17F958D2ee523a2206206994597C13D831ec7',
+                         amount_in=100_000_000)
 
 
 if __name__ == "__main__":
