@@ -2,6 +2,8 @@ from web3 import Web3
 import requests
 import json
 import keys
+import pandas as pd
+import numpy as np
 
 rpc = dict(ethereum="https://rpc.ankr.com/eth", bnb="https://rpc.ankr.com/bsc",
            avalanche="https://rpc.ankr.com/avalanche", fantom="https://rpc.ankr.com/fantom",
@@ -66,13 +68,14 @@ def curve_connector(pool, token_in, token_out, amount_in) -> int:
 
     # This function will be used to calculate the given exchange rate.
     if token_in and token_out in coins:
-        print(f"Exchange rate can be calculated.\n")
+        # print(f"Exchange rate on Curve.fi can be calculated.\n")
         amount_out_dec = pool.get_dy(coins.index(token_in), coins.index(token_out), amount_in_dec).call()
         amount_out = amount_out_dec / 10 ** get_decimals(token_out)
         exchange_rate  = amount_out/amount_in
-        print(f"Swap of {amount_in:,.2f} of token {coins.index(token_in)} will yield "
-              f"{amount_out:,.2f} of token {coins.index(token_out)}.\n"
-              f"Exchange rate is {exchange_rate:,.8f}")
+        # print(f"Swap of {amount_in:,.2f} of token {coins.index(token_in)} will yield "
+        #       f"{amount_out:,.2f} of token {coins.index(token_out)}.\n"
+        #       f"Exchange rate is {exchange_rate:,.8f}")
+        print(f"Exchange rate for {amount_in:,.0f} on Curve.fi: {exchange_rate}.")
         return exchange_rate
     else:
         print('Exchange rate cannot be calculated. Check if both tokens are contained in the pool.')
@@ -102,25 +105,34 @@ def uniswap_v3_connector(quoter, token_in, token_out, amount_in, fee):
 
     exchange_rate = amount_out / amount_in
 
-    print(exchange_rate)
+    print(f"Exchange rate for {amount_in:,.0f} on Uniswap V3: {exchange_rate}.")
     return exchange_rate
 
 
 def main():
-    curve_connector(pool="0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7",
-                    token_in="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-                    token_out="0xdAC17F958D2ee523a2206206994597C13D831ec7",
-                    amount_in=10_000_000)
+    # curve_connector(pool="0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7",
+    #                 token_in="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    #                 token_out="0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    #                 amount_in=10_000_000)
+    #
+    # uniswap_v3_connector(quoter="0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6",
+    #                      token_in="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    #                      token_out="0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    #                      amount_in=10_000_000,
+    #                      fee=100)
 
-    uniswap_v3_connector(quoter="0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6",
-                         token_in="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-                         token_out="0xdAC17F958D2ee523a2206206994597C13D831ec7",
-                         amount_in=10_000_000,
-                         fee=100)
+    pool_ = "0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7"
+    quoter = "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"
+    inn = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+    outt = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+    amounts = [100, 10_000, 100_000, 1_000_000, 5_000_000]
+    rates_array = []
+    for i in amounts:
+        rates_array.append(list([i, curve_connector(pool_,inn, outt, i),
+                                 uniswap_v3_connector(quoter, inn, outt, i, 100)]))
 
-    # usdc_eth = json.load(open('./stablecoins.json'))['data'][0]['usdc']['ethereum']
-    # print(usdc_eth)
-    # print(w3.toChecksumAddress(usdc_eth))
+    df = pd.DataFrame(rates_array, columns=["amount", "curve", "uniswap_v3_0.1%"])
+    print(df)
 
 
 if __name__ == "__main__":
