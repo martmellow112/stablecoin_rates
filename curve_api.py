@@ -14,7 +14,7 @@ df = df[['name', 'symbol', 'id', 'address', 'coinsAddresses', 'decimals',
           'usdTotalExcludingBasePool', 'underlyingDecimals',
           'underlyingCoins']]
 # df1['coinsAddresses'].str.split(',', expand=True)
-print(df['coinsAddresses'].str.)
+print(df['coinsAddresses'].str())
 
 pd.set_option('display.max_rows', 20)
 pd.set_option('display.max_columns', 20)

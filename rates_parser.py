@@ -3,7 +3,7 @@ import requests
 import json
 import keys
 import pandas as pd
-import numpy as np
+
 
 rpc = dict(ethereum="https://rpc.ankr.com/eth", bnb="https://rpc.ankr.com/bsc",
            avalanche="https://rpc.ankr.com/avalanche", fantom="https://rpc.ankr.com/fantom",
@@ -11,11 +11,13 @@ rpc = dict(ethereum="https://rpc.ankr.com/eth", bnb="https://rpc.ankr.com/bsc",
            polygon="https://rpc.ankr.com/polygon")
 
 w3 = Web3(Web3.HTTPProvider(rpc["ethereum"]))
-ETHERSCAN_API_KEY = keys.etherscan_api_key
+ETHERSCAN_API_KEY = keys.ETHERSCAN_API_KEY
 
 
-# This will fetch abi from an explorer given an address
-def fetch_abi(address):
+def fetch_abi(address: str):
+    """
+    This will fetch abi from an explorer given an address.
+    """
     address = Web3.toChecksumAddress(address)
     payload = {"module": "contract",
                "action": "getabi",
@@ -24,66 +26,56 @@ def fetch_abi(address):
                }
     r = requests.get("https://api.etherscan.io/api", params=payload).json()
     abi = json.loads(r["result"])
+    
     return abi
 
+def fetch_symbol(address: str) -> str:
+    '''
+    This will fetch the symbol of an ERC20 token.
+    '''
+    erc20_abi = json.load(open("erc20.abi.json"))
+    address = Web3.toChecksumAddress(address)
+    symbol = w3.eth.contract(address=address,abi=erc20_abi).functions.symbol().call()
+    
+    return symbol
 
-def get_decimals(token_address):
+
+def get_decimals(token_address: str) -> int:
     """
     This function assumes that the token is ERC20 standard.
     """
     # Load ERC20 ABI
     erc20_abi = json.load(open("erc20.abi.json"))
+    token_address = Web3.toChecksumAddress(token_address)
     decimals = w3.eth.contract(address=token_address,abi=erc20_abi).functions.decimals().call()
+    
     return decimals
 
 
-def curve_connector(pool, token_in, token_out, amount_in) -> int:
-    """
-    :param pool: Address of the pool where the swap should happen
-    :param token_in: Address of the token to be swapped (outgoing) -->
+def curve_connector(token_in: str, token_out: str, amount_in: int) -> int:
+    '''
+    :param token_in: address of the token to be swapped (outgoing) -->
     :param token_out: Address of the token to be received (incoming) <--
     :param amount_in: Size of the swap in standard units (this will be converted into the required decimal amount)
-    :return: output of exchange rate
-    """
-
-    # Transform to checksum values, for reasons i do not understand right now
-    pool = Web3.toChecksumAddress(pool)
+    '''
+    # Swap router address, found randomly via google search.
+    # Current contract from https://curve.readthedocs.io/registry-exchanges.html#swapping-tokens is apparently old
+    swap_router = Web3.toChecksumAddress("0x99a58482bd75cbab83b27ec03ca68ff489b5788f")
     token_in = Web3.toChecksumAddress(token_in)
     token_out = Web3.toChecksumAddress(token_out)
 
-    # Get ABI of the pool contract in order to interact with it.
-    pool = w3.eth.contract(address=pool, abi=fetch_abi(pool)).functions
+    swap_router = w3.eth.contract(address=swap_router, abi=fetch_abi(swap_router)).functions
+    decimals = get_decimals(token_in)
+    exchange_rate = swap_router.get_best_rate(token_in, token_out, amount_in * 10 ** decimals).call()[1] \
+        / (amount_in * 10 ** get_decimals(token_out))
 
-    # Transform human-readable swap amount into correct decimal representation
-    amount_in_dec = amount_in * 10 ** (get_decimals(token_in))
-
-    # Make a list of tokens, which could be exchanged in the pool. Length of list is an arbitrary number.
-    # Typically, curve pools do not have more than 4 tokens to be exchanged, hence the value in the list.
-    coins = []
-    for i in range(0, 4):
-        try:
-            coins.append(pool.coins(i).call())
-        except Exception:
-            pass
-
-    # This function will be used to calculate the given exchange rate.
-    if token_in and token_out in coins:
-        # print(f"Exchange rate on Curve.fi can be calculated.\n")
-        amount_out_dec = pool.get_dy(coins.index(token_in), coins.index(token_out), amount_in_dec).call()
-        amount_out = amount_out_dec / 10 ** get_decimals(token_out)
-        exchange_rate  = amount_out/amount_in
-        # print(f"Swap of {amount_in:,.2f} of token {coins.index(token_in)} will yield "
-        #       f"{amount_out:,.2f} of token {coins.index(token_out)}.\n"
-        #       f"Exchange rate is {exchange_rate:,.8f}")
-        print(f"Exchange rate for {amount_in:,.0f} on Curve.fi: {exchange_rate}.")
-        return exchange_rate
-    else:
-        print('Exchange rate cannot be calculated. Check if both tokens are contained in the pool.')
+    print(f"Exchange rate for {amount_in:,.0f} {fetch_symbol(token_in)} "
+          f"-> {fetch_symbol(token_out)} on Curve: {exchange_rate}.")
+    return exchange_rate
 
 
-def uniswap_v3_connector(quoter, token_in, token_out, amount_in, fee):
+def uniswap_v3_connector(token_in: str, token_out: str, amount_in: int, fee: int) -> int:
     """
-    :param quoter: Address of the router, which is a periphery contract used to output price for swaps
     :param token_in: Address of the token to be swapped (outgoing) -->
     :param token_out: Address of the token to be received (incoming) <--
     :param amount_in: Size of the swap in standard units (this will be converted into the required decimal amount)
@@ -91,8 +83,8 @@ def uniswap_v3_connector(quoter, token_in, token_out, amount_in, fee):
     :return: output of exchange rate
     """
 
-    # Transform to checksum values, for reasons i do not understand right now
-    quoter = Web3.toChecksumAddress(quoter)
+    # Transform to checksum value
+    quoter = Web3.toChecksumAddress("0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6")
     token_in = Web3.toChecksumAddress(token_in)
     token_out = Web3.toChecksumAddress(token_out)
 
@@ -102,38 +94,32 @@ def uniswap_v3_connector(quoter, token_in, token_out, amount_in, fee):
     amount_in_dec = amount_in * 10 ** get_decimals(token_in)
     amount_out_dec = quoter.quoteExactInputSingle(token_in, token_out, fee, amount_in_dec, 0).call()
     amount_out = amount_out_dec / 10 ** get_decimals(token_out)
-
     exchange_rate = amount_out / amount_in
 
-    print(f"Exchange rate for {amount_in:,.0f} on Uniswap V3: {exchange_rate}.")
+    print(f"Exchange rate for {amount_in:,.0f} {fetch_symbol(token_in)} -> "
+          f"{fetch_symbol(token_out)} on Uniswap V3 {fee / 1e5:.2%}: {exchange_rate}.")
     return exchange_rate
 
 
 def main():
-    # curve_connector(pool="0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7",
-    #                 token_in="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-    #                 token_out="0xdAC17F958D2ee523a2206206994597C13D831ec7",
-    #                 amount_in=10_000_000)
-    #
-    # uniswap_v3_connector(quoter="0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6",
-    #                      token_in="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-    #                      token_out="0xdAC17F958D2ee523a2206206994597C13D831ec7",
-    #                      amount_in=10_000_000,
-    #                      fee=100)
+    def to_table():
+        token_in = "0xdac17f958d2ee523a2206206994597c13d831ec7"
+        token_out = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+        amounts = [10_000, 100_000, 500_000, 1_000_000, 5_000_000, 10_000_000]
 
-    pool_ = "0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7"
-    quoter = "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"
-    inn = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
-    outt = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
-    amounts = [100, 10_000, 100_000, 1_000_000, 5_000_000]
-    rates_array = []
-    for i in amounts:
-        rates_array.append(list([i, curve_connector(pool_,inn, outt, i),
-                                 uniswap_v3_connector(quoter, inn, outt, i, 100)]))
+        rates_array = []
+        for amount in amounts:
+            print(f"Printing exchange rates for amount: ${amount:,.0f}")
+            rates_array.append(list([amount, curve_connector(token_in, token_out, amount),
+                                    uniswap_v3_connector(token_in, token_out, amount, 100),
+                                    uniswap_v3_connector(token_in, token_out, amount, 500)]))
+            print(f"")
+        
+        # Creating an array
+        df = pd.DataFrame(rates_array, columns=["amount", "curve", "uniswap_v3 0.1%", "uniswap_v3 0.5%"])
+        print(df)
 
-    df = pd.DataFrame(rates_array, columns=["amount", "curve", "uniswap_v3_0.1%"])
-    print(df)
-
+    to_table()
 
 if __name__ == "__main__":
     main()
